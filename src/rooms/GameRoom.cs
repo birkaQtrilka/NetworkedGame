@@ -1,4 +1,5 @@
 ﻿using shared;
+using shared.src.protocol.Game;
 using System;
 
 namespace server
@@ -30,6 +31,17 @@ namespace server
 			IsGameInPlay = true;
 			addMember(pPlayer1);
 			addMember(pPlayer2);
+
+			var infoMessage = new ShowPlayerInfo()
+			{
+				Name1 = _server.GetPlayerInfo(pPlayer1).Name,
+				Name2 = _server.GetPlayerInfo(pPlayer2).Name,
+
+			};
+			safeForEach(m =>
+			{
+				m.SendMessage(infoMessage);
+			});
 		}
 
 		protected override void addMember(TcpMessageChannel pMember)
@@ -40,6 +52,8 @@ namespace server
 			RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();
 			roomJoinedEvent.room = RoomJoinedEvent.Room.GAME_ROOM;
 			pMember.SendMessage(roomJoinedEvent);
+
+			
 		}
 
 		public override void Update()

@@ -1,4 +1,5 @@
 ﻿using shared;
+using shared.src.protocol;
 
 namespace server
 {
@@ -21,11 +22,12 @@ namespace server
 		protected override void addMember(TcpMessageChannel pMember)
 		{
 			base.addMember(pMember);
-
+			UpdateMemberPing(pMember);
 			//notify the client that (s)he is now in the login room, clients can wait for that before doing anything else
 			RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();
 			roomJoinedEvent.room = RoomJoinedEvent.Room.LOGIN_ROOM;
 			pMember.SendMessage(roomJoinedEvent);
+			pMember.SendMessage(new Ping());
 		}
 
 		protected override void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender)
@@ -56,15 +58,19 @@ namespace server
                 playerJoinResponse.result = PlayerJoinResponse.RequestResult.ACCEPTED;
                 pSender.SendMessage(playerJoinResponse);
 
+				_server.GetPlayerInfo(pSender).Name = pMessage.name;
                 removeMember(pSender);
                 _server.GetLobbyRoom().AddMember(pSender);
             }
 			else
 			{
 				playerJoinResponse.result= PlayerJoinResponse.RequestResult.DENIED;
-			}
-			
-		}
+				playerJoinResponse.reason = "Name already exists";
+                pSender.SendMessage(playerJoinResponse);
+
+            }
+
+        }
 
 	}
 }

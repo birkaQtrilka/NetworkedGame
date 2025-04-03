@@ -23,8 +23,11 @@ namespace server
 
 			//print some info in the lobby (can be made more applicable to the current member that joined)
 			ChatMessage simpleMessage = new ChatMessage();
-			simpleMessage.message = "Client 'John Doe' has joined the lobby!";
-			pMember.SendMessage(simpleMessage);
+			simpleMessage.message = $"Client {_server.GetPlayerInfo(pMember).Name} has joined the lobby!";
+			safeForEach(m =>
+			{
+				m.SendMessage(simpleMessage);
+			});
 
 			//send information to all clients that the lobby count has changed
 			sendLobbyUpdateCount();
@@ -44,10 +47,26 @@ namespace server
 
 		protected override void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender)
 		{
-			if (pMessage is ChangeReadyStatusRequest) handleReadyNotification(pMessage as ChangeReadyStatusRequest, pSender);
+			switch(pMessage)
+			{
+				case ChangeReadyStatusRequest changeReadyStatusRequest:
+                    handleReadyNotification(changeReadyStatusRequest, pSender);
+					break;
+				case ChatMessage chatMessage:
+					HandleChatMessage(chatMessage, pSender);
+					break;
+			}
 		}
 
-		private void handleReadyNotification(ChangeReadyStatusRequest pReadyNotification, TcpMessageChannel pSender)
+		void HandleChatMessage(ChatMessage pMsg, TcpMessageChannel pSender)
+		{
+            safeForEach(m =>
+            {
+                m.SendMessage(pMsg);
+            });
+        }
+
+		void handleReadyNotification(ChangeReadyStatusRequest pReadyNotification, TcpMessageChannel pSender)
 		{
 			//if the given client was not marked as ready yet, mark the client as ready
 			if (pReadyNotification.ready)
@@ -60,13 +79,13 @@ namespace server
 			}
 
 			//do we have enough people for a game and is there no game running yet?
-			if (_readyMembers.Count >= 2 && !_server.GetGameRoom().IsGameInPlay)
+			if (_readyMembers.Count >= 2)
 			{
 				TcpMessageChannel player1 = _readyMembers[0];
 				TcpMessageChannel player2 = _readyMembers[1];
 				removeMember(player1);
 				removeMember(player2);
-				_server.GetGameRoom().StartGame(player1, player2);
+				_server.CreateGameRoom().StartGame(player1, player2);
 			}
 
 			//(un)ready-ing / starting a game changes the lobby/ready count so send out an update

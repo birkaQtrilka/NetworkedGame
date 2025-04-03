@@ -5,6 +5,8 @@ using shared;
 using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Diagnostics;
 
 namespace server {
 
@@ -31,22 +33,24 @@ namespace server {
 
 		//we have 3 different rooms at the moment (aka simple but limited)
 
-		private LoginRoom _loginRoom;	//this is the room every new user joins
-		private LobbyRoom _lobbyRoom;	//this is the room a user moves to after a successful 'login'
-		private GameRoom _gameRoom;		//this is the room a user moves to when a game is succesfully started
+		readonly LoginRoom _loginRoom;	//this is the room every new user joins
+		readonly LobbyRoom _lobbyRoom;	//this is the room a user moves to after a successful 'login'
+		readonly List<GameRoom> _gameRooms = new();		//this is the room a user moves to when a game is succesfully started
 
 		//stores additional info for a player
-		private Dictionary<TcpMessageChannel, PlayerInfo> _playerInfo = new Dictionary<TcpMessageChannel, PlayerInfo>();
+		readonly Dictionary<TcpMessageChannel, PlayerInfo> _playerInfo = new();
+        
+		
 
-		private TCPGameServer()
+        TCPGameServer()
 		{
 			//we have only one instance of each room, this is especially limiting for the game room (since this means you can only have one game at a time).
 			_loginRoom = new LoginRoom(this);
 			_lobbyRoom = new LobbyRoom(this);
-			_gameRoom = new GameRoom(this);
+			_gameRooms.Add(new GameRoom(this));
 		}
 
-		private void run()
+		void run()
 		{
 			Log.LogInfo("Starting server on port 55555", this, ConsoleColor.Gray);
 
@@ -67,36 +71,44 @@ namespace server {
 					//and wrap the client in an easier to use communication channel
 					TcpMessageChannel channel = new TcpMessageChannel(client);
 					//and add it to the login room for further 'processing'
+					_playerInfo.Add(channel, new());
 					_loginRoom.AddMember(channel);
 				}
 
 				//now update every single room
 				_loginRoom.Update();
 				_lobbyRoom.Update();
-				_gameRoom.Update();
+                foreach (GameRoom gameRoom in _gameRooms)
+                {
+					gameRoom.Update();
+                }
 
 				Thread.Sleep(100);
 			}
-
 		}
 		
 		//provide access to the different rooms on the server 
 		public LoginRoom GetLoginRoom() { return _loginRoom; }
 		public LobbyRoom GetLobbyRoom() { return _lobbyRoom; }
-		public GameRoom GetGameRoom() { return _gameRoom; }
-
+		public GameRoom CreateGameRoom()
+		{
+			var newGR = new GameRoom(this);
+            _gameRooms.Add(newGR);
+			return newGR;
+		}
 		/**
 		 * Returns a handle to the player info for the given client 
 		 * (will create new player info if there was no info for the given client yet)
 		 */
 		public PlayerInfo GetPlayerInfo (TcpMessageChannel pClient)
 		{
-			if (!_playerInfo.ContainsKey(pClient))
+			if (!_playerInfo.TryGetValue(pClient, out PlayerInfo value))
 			{
-				_playerInfo[pClient] = new PlayerInfo();
+                value = new PlayerInfo();
+                _playerInfo[pClient] = value;
 			}
 
-			return _playerInfo[pClient];
+			return value;
 		}
 
 		/**
@@ -117,7 +129,10 @@ namespace server {
 			_playerInfo.Remove(pClient);
 		}
 
-	}
+		
+
+        
+    }
 
 }
 

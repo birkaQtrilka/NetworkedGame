@@ -1,6 +1,6 @@
 ﻿using shared;
-using System;
-using System.Collections.Generic;
+using shared.src.protocol;
+using System.Diagnostics;
 
 namespace server
 {
@@ -21,16 +21,63 @@ namespace server
 		//all members of this room (we identify them by their message channel)
 		private List<TcpMessageChannel> _members;
 
-		/**
+        readonly static Stopwatch pingTimer = new();
+        long _lastSendTime;
+        const long pingReceiveLimit_Milliseconds = 3000;
+        const long pingSendTime_Milliseconds = 2000;
+        protected int memberCount => _members.Count;
+
+        /**
 		 * Create a room with an empty member list and reference to the server instance they are a part of.
 		 */
-		protected Room (TCPGameServer pServer)
+        protected Room (TCPGameServer pServer)
 		{
 			_server = pServer;
 			_members = new List<TcpMessageChannel>();
-		}
+            pingTimer.Start();
 
-		protected virtual void addMember(TcpMessageChannel pMember)
+        }
+
+        void ProcessPings()
+        {
+            long currentTime = pingTimer.ElapsedMilliseconds;
+
+            bool shouldSend = currentTime - _lastSendTime > pingSendTime_Milliseconds;
+            if (shouldSend)
+			{
+				_lastSendTime = currentTime;
+                Console.WriteLine("shouldPing");
+
+            }
+
+            Ping msg = new();
+
+            safeForEach(m => 
+			{
+				PlayerInfo info = _server.GetPlayerInfo(m);
+                if (currentTime - info.LastPingMilliseconds > pingReceiveLimit_Milliseconds)
+                {
+                    removeAndCloseMember(m);
+                }else if (shouldSend)
+                {
+                    m.SendMessage(msg);
+                }
+            });
+            
+        }
+
+        protected void UpdateMemberPing(TcpMessageChannel pMember)
+        {
+            _server.GetPlayerInfo(pMember).LastPingMilliseconds = pingTimer.ElapsedMilliseconds;
+            _lastSendTime = pingTimer.ElapsedMilliseconds;
+        }
+
+        void OnPingReceive(TcpMessageChannel pSender)
+        {
+			_server.GetPlayerInfo(pSender).LastPingMilliseconds = pingTimer.ElapsedMilliseconds;
+        }
+
+        protected virtual void addMember(TcpMessageChannel pMember)
 		{
 			Log.LogInfo("Client joined.", this);
 			_members.Add(pMember);
@@ -42,8 +89,6 @@ namespace server
 			_members.Remove(pMember);
 		}
 
-		protected int memberCount => _members.Count;
-		
 		protected int indexOfMember (TcpMessageChannel pMember)
 		{
 			return _members.IndexOf(pMember);
@@ -54,6 +99,7 @@ namespace server
 		 */
 		public virtual void Update()
 		{
+			ProcessPings();
 			removeFaultyMembers();
 			receiveAndProcessNetworkMessages();
 		}
@@ -121,7 +167,15 @@ namespace server
 		{
 			while (pMember.HasMessage())
 			{
-				handleNetworkMessage(pMember.ReceiveMessage(), pMember);
+				ASerializable msg = pMember.ReceiveMessage();
+
+                if (msg is Ping)
+				{
+					OnPingReceive(pMember);
+					continue;
+				}
+
+				handleNetworkMessage(msg, pMember);
 			}
 		}
 
