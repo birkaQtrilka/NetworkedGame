@@ -60,6 +60,7 @@ namespace server
 
 		void HandleChatMessage(ChatMessage pMsg, TcpMessageChannel pSender)
 		{
+			pMsg.message = $"{_server.GetPlayerInfo(pSender).Name}: {pMsg.message}"; 
             safeForEach(m =>
             {
                 m.SendMessage(pMsg);
