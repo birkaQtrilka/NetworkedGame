@@ -1,6 +1,4 @@
 ﻿using shared;
-using shared.src.protocol.Game;
-using System;
 
 namespace server
 {
@@ -19,9 +17,8 @@ namespace server
 
 		//wraps the board to play on...
 		CheckersBoard _board = new CheckersBoard();
-		int _player1_SelectedTile = -1;
-		int _player2_SelectedTile = -1;
 
+		int playerTurn = 1;
 
 		public GameRoom(TCPGameServer pOwner) : base(pOwner)
 		{
@@ -36,13 +33,24 @@ namespace server
 			IsGameInPlay = true;
 			addMember(pPlayer1);
 			addMember(pPlayer2);
-
+			playerTurn = 1;
 			var infoMessage = new ShowPlayerInfo()
 			{
 				Name1 = _server.GetPlayerInfo(pPlayer1).Name,
 				Name2 = _server.GetPlayerInfo(pPlayer2).Name,
-
 			};
+			_board.SetStartState();
+
+			var resetBoard = new ResetBoard()
+			{
+				boardData = _board.GetBoardData()
+			};
+
+			safeForEach(m =>
+			{
+				m.SendMessage(resetBoard);
+			});
+
 			safeForEach(m =>
 			{
 				m.SendMessage(infoMessage);
@@ -90,7 +98,11 @@ namespace server
 		{
 			//we have two players, so index of sender is 0 or 1, which means playerID becomes 1 or 2
 			byte senderID = (byte)(indexOfMember(pSender) + 1);
-
+			if (senderID != playerTurn)
+			{
+                Log.LogInfo("It's not your turn!", this, ConsoleColor.Red);
+                return;
+            }
             int from = pMessage.From;
             int to = pMessage.To;
 
@@ -109,15 +121,22 @@ namespace server
             }
             Log.LogInfo("Can make move!", this, ConsoleColor.Green);
 
-            _board.MakeMove(from, to);
+            bool removedPiece = _board.MakeMove(from, to);
             Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
 
+			if (!removedPiece) SwitchPlayerTurn();
 
 			//and send the result of the boardstate back to all clients
-			MakeMoveResult makeMoveResult = new MakeMoveResult();
+			MakeMoveResult makeMoveResult = new();
 			makeMoveResult.whoMadeTheMove = senderID;
 			makeMoveResult.boardData = _board.GetBoardData();
 			sendToAll(makeMoveResult);
+		}
+
+		void SwitchPlayerTurn()
+		{
+			if (playerTurn == 1) playerTurn = 2;
+			else playerTurn = 1;
 		}
 
 		void HandleSelectPieceRequest(SelectPieceRequest pMessage, TcpMessageChannel pSender)
@@ -131,9 +150,14 @@ namespace server
 			{
 				pSender.SendMessage(new SelectPieceResponse()
 				{
-					MoveIndexes = _board.GetPossibleMoves(piece, pieceIndex, playerID)
+					MoveIndexes = _board.GetPossibleMoves(piece, pieceIndex, playerID),
+					SelectedPieceIndex = pieceIndex
 				});
 				
+			}
+			else
+			{
+				Log.LogInfo("Not your piece", this, ConsoleColor.Red);
 			}
 		}
 	}

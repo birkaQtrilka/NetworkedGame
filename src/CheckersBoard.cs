@@ -90,7 +90,7 @@ namespace server
                 _board.board[i] = EMPTY;
 
             for (int i = 40; i < BOARD_COUNT; i++)
-                if ((i + ((i / 8) % 2)) % 2 == 0) board[i] = PLAYER_1_PAWN;
+                if ((i + ((i / 8) % 2)) % 2 == 0) board[i] = PLAYER_2_PAWN;
                 else board[i] = EMPTY;
         }
         
@@ -239,8 +239,8 @@ namespace server
             }
             Log.LogInfo("Can make move!", this, ConsoleColor.Green);
 
-            MakeMove(from, to);
-            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
+            bool destroyed = MakeMove(from, to);
+            Log.LogInfo(_board.ToString() + "\n destroyed: " + destroyed, this, ConsoleColor.Yellow);
 
         }
         #endregion
@@ -281,10 +281,10 @@ namespace server
             }
             return moves;
         }
-
+        //return if it deleted a piece
         //this method assumes that your move is valid,
         //including that the piece in between the move is the enemy piece
-        public void MakeMove(int pFromIndx, int pToIndx)
+        public bool MakeMove(int pFromIndx, int pToIndx)
         {
             var board = _board.board;
             (board[pFromIndx], board[pToIndx]) = (board[pToIndx], board[pFromIndx]);
@@ -296,13 +296,19 @@ namespace server
                 Math.Sign(endPos.X - startPos.X),
                 Math.Sign(endPos.Y - startPos.Y)
             );
+            bool removedPiece = false;
+
             Vector2Int checkedPos = startPos + dir;
             while(checkedPos != endPos)
             {
                 int checkedIndex = GetIndex(checkedPos);
+                
+                if(board[checkedIndex] != EMPTY) removedPiece = true;
+
                 board[checkedIndex] = EMPTY;
                 checkedPos += dir;
             }
+            return removedPiece;
         }
 
         static Vector2Int GetXY(int index)
@@ -322,8 +328,8 @@ namespace server
 
         static bool IsInBoardBounds(Vector2Int checkPos)
         {
-            return checkPos.X >= 0 && checkPos.X <= BOARD_WIDTH &&
-                   checkPos.Y >= 0 && checkPos.Y <= BOARD_WIDTH;
+            return checkPos.X >= 0 && checkPos.X < BOARD_WIDTH &&
+                   checkPos.Y >= 0 && checkPos.Y < BOARD_WIDTH;
         }
 
         public static bool IsPieceOfPlayer(byte playerNum, byte piece)

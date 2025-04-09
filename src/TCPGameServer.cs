@@ -52,12 +52,19 @@ namespace server {
 
 		void run()
 		{
-			CheckersBoard testBoard = new();
+			//CheckersBoard testBoard = new();
 			//testBoard.SetTest2();
 			//testBoard.SetTest3();
 			//testBoard.SetTest4();
 			//testBoard.SetTest5();
-			testBoard.SetTest6();
+			//testBoard.SetTest6();
+			//testBoard.SetStartState();
+
+			//ResetBoard b= new ResetBoard() { boardData = testBoard.GetBoardData() };
+			//Packet p = new Packet();
+			//p.Write(b);
+			//Packet pb = new Packet(p.GetBytes());
+			//var result = pb.ReadObject();
 
 			Log.LogInfo("Starting server on port 55555", this, ConsoleColor.Gray);
 
