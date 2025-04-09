@@ -52,6 +52,13 @@ namespace server {
 
 		void run()
 		{
+			CheckersBoard testBoard = new();
+			//testBoard.SetTest2();
+			//testBoard.SetTest3();
+			//testBoard.SetTest4();
+			//testBoard.SetTest5();
+			testBoard.SetTest6();
+
 			Log.LogInfo("Starting server on port 55555", this, ConsoleColor.Gray);
 
 			//start listening for incoming connections (with max 50 in the queue)

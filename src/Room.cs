@@ -46,7 +46,6 @@ namespace server
             if (shouldSend)
 			{
 				_lastSendTime = currentTime;
-                Console.WriteLine("shouldPing");
 
             }
 

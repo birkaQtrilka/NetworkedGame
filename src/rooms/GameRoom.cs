@@ -18,11 +18,16 @@ namespace server
 		public bool IsGameInPlay { get; private set; }
 
 		//wraps the board to play on...
-		private TicTacToeBoard _board = new TicTacToeBoard();
+		CheckersBoard _board = new CheckersBoard();
+		int _player1_SelectedTile = -1;
+		int _player2_SelectedTile = -1;
+
 
 		public GameRoom(TCPGameServer pOwner) : base(pOwner)
 		{
 		}
+
+		
 
 		public void StartGame (TcpMessageChannel pPlayer1, TcpMessageChannel pPlayer2)
 		{
@@ -71,25 +76,65 @@ namespace server
 
 		protected override void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender)
 		{
-			if (pMessage is MakeMoveRequest)
+			if (pMessage is MakeMoveRequest makeMoveRequest) 
 			{
-				handleMakeMoveRequest(pMessage as MakeMoveRequest, pSender);
+				HandleMakeMoveRequest(makeMoveRequest, pSender);
+			}
+			else if(pMessage is SelectPieceRequest selectPieceRequest)
+			{
+				HandleSelectPieceRequest(selectPieceRequest, pSender);
 			}
 		}
 
-		private void handleMakeMoveRequest(MakeMoveRequest pMessage, TcpMessageChannel pSender)
+		void HandleMakeMoveRequest(MakeMoveRequest pMessage, TcpMessageChannel pSender)
 		{
 			//we have two players, so index of sender is 0 or 1, which means playerID becomes 1 or 2
-			int playerID = indexOfMember(pSender) + 1;
-			//make the requested move (0-8) on the board for the player
-			_board.MakeMove(pMessage.move, playerID);
+			byte senderID = (byte)(indexOfMember(pSender) + 1);
+
+            int from = pMessage.From;
+            int to = pMessage.To;
+
+            byte pieceToMove = _board.GetBoardData().board[from];
+            //checking if the piece is of the sender
+            if (!CheckersBoard.IsPieceOfPlayer(senderID, pieceToMove))
+            {
+                Log.LogInfo("Is not your Piece!", this, ConsoleColor.Red);
+                return;
+            }
+            List<int> possibleMoves = _board.GetPossibleMoves(pieceToMove, from, senderID);
+            if (!possibleMoves.Any(m => m == to))
+            {
+                Log.LogInfo("Not a valid move!", this, ConsoleColor.Red);
+                return;
+            }
+            Log.LogInfo("Can make move!", this, ConsoleColor.Green);
+
+            _board.MakeMove(from, to);
+            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
+
 
 			//and send the result of the boardstate back to all clients
 			MakeMoveResult makeMoveResult = new MakeMoveResult();
-			makeMoveResult.whoMadeTheMove = playerID;
+			makeMoveResult.whoMadeTheMove = senderID;
 			makeMoveResult.boardData = _board.GetBoardData();
 			sendToAll(makeMoveResult);
 		}
 
+		void HandleSelectPieceRequest(SelectPieceRequest pMessage, TcpMessageChannel pSender)
+		{
+			//respond with confirmation and possible moves
+			byte playerID = (byte)(indexOfMember(pSender) + 1);
+			
+			int pieceIndex = pMessage.TileIndex;
+            byte piece = _board.GetBoardData().board[pieceIndex];
+			if(CheckersBoard.IsPieceOfPlayer(playerID, piece))
+			{
+				pSender.SendMessage(new SelectPieceResponse()
+				{
+					MoveIndexes = _board.GetPossibleMoves(piece, pieceIndex, playerID)
+				});
+				
+			}
+		}
 	}
 }
