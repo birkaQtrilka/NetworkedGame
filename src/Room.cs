@@ -1,6 +1,7 @@
 ﻿using shared;
 using shared.src.protocol;
 using System.Diagnostics;
+using System.IO;
 
 namespace server
 {
@@ -59,7 +60,10 @@ namespace server
                     removeAndCloseMember(m);
                 }else if (shouldSend)
                 {
+					Log.enabled = false;
                     m.SendMessage(msg);
+                    Log.enabled = true;
+
                 }
             });
             
@@ -164,19 +168,23 @@ namespace server
 		/**
 		 * Get all the messages from a specific member and process them
 		 */
-		private void receiveAndProcessNetworkMessagesFromMember(TcpMessageChannel pMember)
+		void receiveAndProcessNetworkMessagesFromMember(TcpMessageChannel pMember)
 		{
 			while (pMember.HasMessage())
 			{
-				ASerializable msg = pMember.ReceiveMessage();
-
+				//doing the enabled mumbo jumbo to prevent spam of pings
+				Log.enabled = false;
+                ASerializable msg = pMember.ReceiveMessage();
+				Log.enabled = true;
                 if (msg is Ping)
 				{
 					OnPingReceive(pMember);
 					continue;
 				}
-
-				handleNetworkMessage(msg, pMember);
+                Log.PushForegroundColor(ConsoleColor.Yellow);
+                Log.LogInfo("Received " + msg, this);
+                Log.PopForegroundColor();
+                handleNetworkMessage(msg, pMember);
 			}
 		}
 
