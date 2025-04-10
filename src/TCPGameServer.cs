@@ -167,18 +167,23 @@ namespace server {
 		
 		void ProcessPendingClients()
 		{
-            //check for new members	
-            if (listener.Pending())
-            {
-                //get the waiting client
-                Log.LogInfo("Accepting new client...", this, ConsoleColor.White);
-                TcpClient client = listener.AcceptTcpClient();
-                //and wrap the client in an easier to use communication channel
-                TcpMessageChannel channel = new TcpMessageChannel(client);
-                //and add it to the login room for further 'processing'
-                _playerInfo.Add(channel, new());
-                _loginRoom.AddMember(channel);
-            }
+			try
+			{
+				//check for new members	
+				if (listener.Pending())
+				{
+					//get the waiting client
+					Log.LogInfo("Accepting new client...", this, ConsoleColor.White);
+					TcpClient client = listener.AcceptTcpClient();
+					//and wrap the client in an easier to use communication channel
+					TcpMessageChannel channel = new TcpMessageChannel(client);
+					//and add it to the login room for further 'processing'
+					_playerInfo.Add(channel, new());
+					_loginRoom.AddMember(channel);
+				}
+			}
+			catch { }
+            
         }
 
 		//provide access to the different rooms on the server 
