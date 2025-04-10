@@ -11,22 +11,16 @@ namespace server
 	 * The game has no end yet (that is up to you), in other words:
 	 * all players that are added to this room, stay in here indefinitely.
 	 */
-	class GameRoom : Room
+	class GameRoom(TCPGameServer pOwner) : Room(pOwner)
 	{
 		public bool IsGameInPlay { get; private set; }
 
 		//wraps the board to play on...
-		CheckersBoard _board = new CheckersBoard();
+		CheckersBoard _board = new();
 
 		int playerTurn = 1;
 
-		public GameRoom(TCPGameServer pOwner) : base(pOwner)
-		{
-		}
-
-
-
-		public void StartGame(TcpMessageChannel pPlayer1, TcpMessageChannel pPlayer2)
+        public void StartGame(TcpMessageChannel pPlayer1, TcpMessageChannel pPlayer2)
 		{
 			if (IsGameInPlay) throw new Exception("Programmer error duuuude.");
 
@@ -39,17 +33,17 @@ namespace server
 				Name1 = _server.GetPlayerInfo(pPlayer1).Name,
 				Name2 = _server.GetPlayerInfo(pPlayer2).Name,
 			};
-			_board.SetBoardData([
-					0,0,0,0,0,0,0,0,
-					0,0,0,0,0,0,0,0,
-					0,0,0,0,0,0,0,0,
-					0,0,0,0,0,0,0,0,
-					0,0,0,0,0,2,0,0,
-					0,0,0,0,0,0,0,0,
-					0,1,0,0,0,0,0,0,
-					0,0,0,0,0,0,0,0
-				]);
-			//_board.SetStartState();
+			//_board.SetBoardData([
+			//		0,0,0,0,0,0,1,0,
+			//		0,0,0,0,0,1,0,1,
+			//		1,0,1,0,2,0,1,0,
+			//		0,1,0,0,0,0,0,2,
+			//		2,0,1,0,2,0,2,0,
+			//		0,0,0,0,0,2,0,0,
+			//		2,0,0,0,0,0,0,0,
+			//		0,0,0,0,0,0,0,0
+			//	]);
+			_board.SetStartState();
 
 			var resetBoard = new ResetBoard()
 			{
@@ -72,14 +66,27 @@ namespace server
 			base.addMember(pMember);
 
 			//notify client he has joined a game room 
-			RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();
+			RoomJoinedEvent roomJoinedEvent = new();
 			roomJoinedEvent.room = RoomJoinedEvent.Room.GAME_ROOM;
 			pMember.SendMessage(roomJoinedEvent);
 
 
 		}
 
-		public override void Update()
+        protected override void removeMember(TcpMessageChannel pMember)
+        {
+            base.removeMember(pMember);
+			if (!IsGameInPlay) return;
+
+            GameEnd gameEnd = new();
+            gameEnd.GameEndState = GameEnd.EndState.Win;
+            safeForEach(m => {
+				m.SendMessage(gameEnd);
+			});
+        }
+        
+
+        public override void Update()
 		{
 			//demo of how we can tell people have left the game...
 			int oldMemberCount = memberCount;
@@ -94,21 +101,58 @@ namespace server
 
 		protected override void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender)
 		{
-			if (pMessage is MakeMoveRequest makeMoveRequest)
+			switch(pMessage)
 			{
-				HandleMakeMoveRequest(makeMoveRequest, pSender);
-			}
-			else if (pMessage is SelectPieceRequest selectPieceRequest)
-			{
-				HandleSelectPieceRequest(selectPieceRequest, pSender);
-			}
+				case MakeMoveRequest makeMoveRequest:
+					HandleMakeMoveRequest(makeMoveRequest, pSender);
+					break;
+                case SelectPieceRequest selectPieceRequest:
+					HandleSelectPieceRequest(selectPieceRequest, pSender);
+                    break;
+				case ResignRequest resignRequest: 
+					HandleResignRequest(resignRequest, pSender); 
+					break;
+				case JoinRoomRequest joinRoomRequest:
+					HandleJoinRoom(joinRoomRequest, pSender);
+					break;
+            }
 		}
+
+        void HandleJoinRoom(JoinRoomRequest joinRoomRequest, TcpMessageChannel pSender)
+        {
+			if(joinRoomRequest.room == RoomJoinedEvent.Room.LOBBY_ROOM)
+			{
+				pSender.SendMessage(new RoomJoinedEvent() { room = RoomJoinedEvent.Room.LOBBY_ROOM});
+				IsGameInPlay = false;
+				removeMember(pSender);
+				_server.GetLobbyRoom().AddMember(pSender);
+			}
+        }
+
+        void HandleResignRequest(ResignRequest resignRequest, TcpMessageChannel pSender)
+		{
+            safeForEach(m =>
+            {
+                GameEnd gameEnd = new();
+                if (m == pSender)
+                {
+                    gameEnd.GameEndState = GameEnd.EndState.Lose;
+                    m.SendMessage(gameEnd);
+                }
+                else
+                {
+                    gameEnd.GameEndState = GameEnd.EndState.Win;
+                    m.SendMessage(gameEnd);
+                }
+            });
+
+        }
 
 		void HandleMakeMoveRequest(MakeMoveRequest pMessage, TcpMessageChannel pSender)
 		{
 			//we have two players, so index of sender is 0 or 1, which means playerID becomes 1 or 2
-			byte senderID = (byte)(indexOfMember(pSender) + 1);
-			if (senderID != playerTurn)
+			byte playerID = (byte)(indexOfMember(pSender) + 1);
+			if (playerID != playerTurn)
 			{
 				Log.LogInfo("It's not your turn!", this, ConsoleColor.Red);
 				return;
@@ -120,10 +164,10 @@ namespace server
 			//checking if the piece is of the sender
 			if 
 			(
-				!CheckersBoard.IsPieceOfPlayer(senderID, pieceToMove) ||
+				!CheckersBoard.IsPieceOfPlayer(playerID, pieceToMove) ||
                 (
-					!_board.HasRemovablePieces(pieceToMove, from, senderID) &&
-					_board.PlayerHasForcedCapture(senderID, pieceToExclude: from) 
+					!_board.HasRemovablePieces(pieceToMove, from, playerID) &&
+					_board.PlayerHasForcedCapture(playerID, pieceToExclude: from) 
 				)
 			)
             {
@@ -131,7 +175,7 @@ namespace server
                 return;
             }
 
-            List<int> possibleMoves = _board.GetPossibleMoves(pieceToMove, from, senderID);
+            List<int> possibleMoves = _board.GetPossibleMoves(pieceToMove, from, playerID);
             if (!possibleMoves.Any(m => m == to))
             {
                 Log.LogInfo("Not a valid move!", this, ConsoleColor.Red);
@@ -141,23 +185,55 @@ namespace server
 
             bool removedPiece = _board.MakeMove(from, to);
 			
-			if(_board.IsPromoteable(to, senderID)) _board.PromotePiece(to);
+			if(_board.IsPromoteable(to, playerID)) _board.PromotePiece(to);
 
             Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
 
-			if (!removedPiece || !_board.HasRemovablePieces(pieceToMove, to, senderID))
+			if (!removedPiece || !_board.HasRemovablePieces(pieceToMove, to, playerID))
 			{
                 SwitchPlayerTurn();
 			}
 
             //and send the result of the boardstate back to all clients
             MakeMoveResult makeMoveResult = new();
-			makeMoveResult.whoMadeTheMove = senderID;
+			makeMoveResult.whoMadeTheMove = playerID;
 			makeMoveResult.boardData = _board.GetBoardData();
-			sendToAll(makeMoveResult);
+			SendToAll(makeMoveResult);
+
+			CheckAndSendWinState(playerID, pSender);
 		}
 
-		void SwitchPlayerTurn()
+		void CheckAndSendWinState(byte playerID, TcpMessageChannel pSender)
+		{
+			byte otherPlayerID = _board.GetOtherPlayer(playerID);
+            if (!_board.PlayerHasPawns(otherPlayerID))
+            {
+				safeForEach(m =>
+				{
+                    GameEnd gameEnd = new();
+                    if (m == pSender)
+					{
+						gameEnd.GameEndState = GameEnd.EndState.Win;
+						m.SendMessage(gameEnd);
+                    }
+					else
+					{
+                        gameEnd.GameEndState = GameEnd.EndState.Lose;
+                        m.SendMessage(gameEnd);
+                    }
+				});
+            }
+			//else if (!_board.PlayerHasMoves(otherPlayerID)) //staleMate
+			//{
+			//	GameEnd gameEnd = new()
+			//	{
+			//		GameEndState = GameEnd.EndState.Draw
+			//	};
+			//	SendToAll(gameEnd);
+			//}
+		}
+
+        void SwitchPlayerTurn()
 		{
 			if (playerTurn == 1) playerTurn = 2;
 			else playerTurn = 1;

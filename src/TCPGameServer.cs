@@ -39,7 +39,7 @@ namespace server {
 
 		//stores additional info for a player
 		readonly Dictionary<TcpMessageChannel, PlayerInfo> _playerInfo = new();
-        
+        TcpListener listener;
 		
 
         TCPGameServer()
@@ -52,7 +52,8 @@ namespace server {
 
 		void run()
 		{
-			CheckersBoard testBoard = new();
+            #region Tests
+            CheckersBoard testBoard = new();
 			testBoard.SetTest2();
 			testBoard.SetTest3();
 			testBoard.SetTest4();
@@ -92,69 +93,94 @@ namespace server {
             testBoard.SetTest7
             (
                 [
+                    1,0,1,0,0,0,0,0,
+                    0,0,0,2,0,0,0,0,
+                    2,0,0,0,0,0,0,0,
                     0,0,0,0,0,0,0,0,
                     0,0,0,0,0,0,0,0,
+                    2,0,2,0,0,0,0,0,
                     0,0,0,0,0,0,0,0,
-                    0,0,0,0,0,0,0,0,
-                    0,0,0,0,0,2,0,0,
-                    0,0,0,0,0,0,0,0,
-                    0,1,0,0,0,0,0,0,
-                    0,0,0,0,0,0,0,0
+                    0,0,1,0,0,0,0,0
                 ],
                 moveFrom: 49,
                 moveTo: 58
             );
-            //testBoard.SetStartState();
+			testBoard.SetTest7
+            (
+                [
+                    0,0,0,0,0,0,4,0,
+                    0,1,0,0,0,0,0,0,
+                    1,0,0,0,0,0,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,3,0,0,0,
+                    0,3,0,0,0,0,0,0,
+                    2,0,0,0,0,0,0,0,
+                    0,0,0,0,0,0,0,0
+                ],
+                moveFrom: 41,
+                moveTo: 33,
+				false
+            );
+			//testBoard.SetStartState();
 
-            //ResetBoard b = new ResetBoard() { boardData = testBoard.GetBoardData() };
-            //Packet p = new Packet();
-            //p.Write(b);
-            //Packet pb = new Packet(p.GetBytes());
-            //var result = pb.ReadObject();
+			//ResetBoard b = new ResetBoard() { boardData = testBoard.GetBoardData() };
+			//Packet p = new Packet();
+			//p.Write(b);
+			//Packet pb = new Packet(p.GetBytes());
+			//var result = pb.ReadObject();
 
 
-            //b = new ResetBoard() { boardData = testBoard.GetBoardData() };
-            //p = new Packet();
-            //p.Write(b);
-            //pb = new Packet(p.GetBytes());
-            //result = pb.ReadObject();
-            //var board = result as ResetBoard;
-            //var strin = board.boardData.ToString();
-            //Log.LogInfo("Starting server on port 55555", this, ConsoleColor.Gray);
+			//b = new ResetBoard() { boardData = testBoard.GetBoardData() };
+			//p = new Packet();
+			//p.Write(b);
+			//pb = new Packet(p.GetBytes());
+			//result = pb.ReadObject();
+			//var board = result as ResetBoard;
+			//var strin = board.boardData.ToString();
+			//Log.LogInfo("Starting server on port 55555", this, ConsoleColor.Gray);
 
-            //start listening for incoming connections (with max 50 in the queue)
-            //we allow for a lot of incoming connections, so we can handle them
-            //and tell them whether we will accept them or not instead of bluntly declining them
-            TcpListener listener = new TcpListener(IPAddress.Any, 55555);
-			listener.Start(50);
+			//start listening for incoming connections (with max 50 in the queue)
+			//we allow for a lot of incoming connections, so we can handle them
+			//and tell them whether we will accept them or not instead of bluntly declining them
+			#endregion
+			listener = new TcpListener(IPAddress.Any, 55555);
+            listener.Start(50);
 
-			while (true)
+            while (true)
 			{
-				//check for new members	
-				if (listener.Pending())
-				{
-					//get the waiting client
-					Log.LogInfo("Accepting new client...", this, ConsoleColor.White);
-					TcpClient client = listener.AcceptTcpClient();
-					//and wrap the client in an easier to use communication channel
-					TcpMessageChannel channel = new TcpMessageChannel(client);
-					//and add it to the login room for further 'processing'
-					_playerInfo.Add(channel, new());
-					_loginRoom.AddMember(channel);
-				}
-
+				ProcessPendingClients();
 				//now update every single room
 				_loginRoom.Update();
 				_lobbyRoom.Update();
                 foreach (GameRoom gameRoom in _gameRooms)
-                {
 					gameRoom.Update();
-                }
 
-				Thread.Sleep(100);
+				for (int i = _gameRooms.Count-1; i >=0 ; i--)
+				{
+					var gameRoom = _gameRooms[i];
+					if (gameRoom.GetMemberCount() > 0) gameRoom.Update();
+					else _gameRooms.RemoveAt(i);
+                }
+                Thread.Sleep(100);
 			}
 		}
 		
+		void ProcessPendingClients()
+		{
+            //check for new members	
+            if (listener.Pending())
+            {
+                //get the waiting client
+                Log.LogInfo("Accepting new client...", this, ConsoleColor.White);
+                TcpClient client = listener.AcceptTcpClient();
+                //and wrap the client in an easier to use communication channel
+                TcpMessageChannel channel = new TcpMessageChannel(client);
+                //and add it to the login room for further 'processing'
+                _playerInfo.Add(channel, new());
+                _loginRoom.AddMember(channel);
+            }
+        }
+
 		//provide access to the different rooms on the server 
 		public LoginRoom GetLoginRoom() { return _loginRoom; }
 		public LobbyRoom GetLobbyRoom() { return _lobbyRoom; }

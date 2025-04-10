@@ -99,7 +99,7 @@ namespace server
 			LobbyInfoUpdate lobbyInfoMessage = new LobbyInfoUpdate();
 			lobbyInfoMessage.memberCount = memberCount;
 			lobbyInfoMessage.readyCount = _readyMembers.Count;
-			sendToAll(lobbyInfoMessage);
+			SendToAll(lobbyInfoMessage);
 		}
 
 	}

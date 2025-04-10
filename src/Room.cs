@@ -76,6 +76,8 @@ namespace server
 			_server.GetPlayerInfo(pSender).LastPingMilliseconds = pingTimer.ElapsedMilliseconds;
         }
 
+		public int GetMemberCount() => _members.Count;
+
         protected virtual void addMember(TcpMessageChannel pMember)
 		{
 			Log.LogInfo("Client joined.", this);
@@ -183,12 +185,12 @@ namespace server
 		/**
 		 * Sends a message to all members in the room.
 		 */
-		protected void sendToAll(ASerializable pMessage)
+		protected void SendToAll(ASerializable pMessage)
 		{
-			foreach (TcpMessageChannel member in _members)
+			safeForEach(m =>
 			{
-				member.SendMessage(pMessage);
-			}
+				m.SendMessage(pMessage);
+			});
 		}
 
 	}

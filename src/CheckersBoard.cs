@@ -137,19 +137,19 @@ namespace server
                     byte checkedPiece = board[newPieceIndex];
                     if (checkedPiece == EMPTY)
                     {
-                        set.indexes.Add(newPieceIndex);
                         if (pieceDetectedInDirection)
                         {
+                            set.indexes.Clear();
                             set.hasCapturablePiece = true;
                             capturablePieceExists = true;
                         }
+                        set.indexes.Add(newPieceIndex);
                         continue;
                     }
 
                     if (pieceDetectedInDirection || IsPieceOfPlayer(playerIndex, checkedPiece)) break;
                     pieceDetectedInDirection = true;
                     //need to remove previous empty spaces
-                    set.indexes.Clear();
                     //increasing range, so I can check the next tile
                     range++;
                 }
@@ -159,7 +159,6 @@ namespace server
             }
 
             foreach (DirectionMoves set in moveSet)
-            {
                 if (capturablePieceExists)
                 {
                     if (!set.hasCapturablePiece) set.indexes.Clear();
@@ -168,7 +167,6 @@ namespace server
                 {
                     if (!IsPieceDirection(playerIndex, piece, set.directionIndex)) set.indexes.Clear();
                 }
-            }
 
             return moveSet.SelectMany(m => m.indexes).ToList();
         }
@@ -183,14 +181,14 @@ namespace server
         public bool HasRemovablePieces(byte piece, int pieceIndex, byte playerIndex)
         {
             Vector2Int p = GetXY(pieceIndex);
-
-            int range = IsQueen(piece) ? 99 : 1;
             byte[] board = _board.board;
             //use getPieceMoves if the rule is to capture only forward
             foreach (Vector2Int direction in directions)
             {
                 //in case there are two pieces in a row, to break the possible moves
                 bool lastWasPiece = false;
+                int range = IsQueen(piece) ? 99 : 1;
+
                 for (int i = 1; i <= range; i++)
                 {
                     Vector2Int checkPos = p + direction * i;
@@ -201,16 +199,13 @@ namespace server
                     if (checkedPiece == EMPTY)
                     {
                         if (lastWasPiece) return true;
-                        lastWasPiece = false;
+                        continue;
                     }
-                    else
-                    {
-                        if (lastWasPiece || IsPieceOfPlayer(playerIndex, checkedPiece)) break;
-                        lastWasPiece = true;
+                    if (lastWasPiece || IsPieceOfPlayer(playerIndex, checkedPiece)) break;
+                    lastWasPiece = true;
 
-                        //increasing range, so I can check the next tile
-                        range++;
-                    }
+                    //increasing range, so I can check the next tile
+                    range++;
                 }
             }
             return false;
@@ -257,6 +252,23 @@ namespace server
             }
             return false;
         }
+        
+
+        public bool PlayerHasPawns(byte playerID)
+        {
+            return _board.board.Any(p => IsPieceOfPlayer(playerID, p));
+        }
+
+        public bool PlayerHasMoves(byte playerID)
+        {
+            for (int i = 0; i < BOARD_COUNT; i++)
+            {
+                var p = _board.board[i];
+                if (IsPieceOfPlayer(playerID, p) && GetPossibleMoves(p,i,playerID).Count == 0) return true;
+            }
+            return false;
+
+        }
 
         public void PromotePiece(int pieceID)
         {
@@ -276,7 +288,7 @@ namespace server
             }
         }
 
-        byte GetOtherPlayer(byte playerIndex)
+        public byte GetOtherPlayer(byte playerIndex)
         {
             return (byte)(playerIndex == 1 ? 2 : 1);
         }
@@ -317,6 +329,19 @@ namespace server
         }
 
         #region Tests
+        public void CheckWinStateDebug(byte playerID)
+        {
+            byte otherPlayerID = GetOtherPlayer(playerID);
+            if (!PlayerHasPawns(otherPlayerID))
+            {
+                Log.LogInfo($"player {playerID} wins, and player {otherPlayerID} loses", this, ConsoleColor.DarkGreen);
+            }
+            else if (!PlayerHasMoves(otherPlayerID)) //staleMate
+            {
+                Log.LogInfo($"Draw - staleMate", this, ConsoleColor.DarkGreen);
+            }
+        }
+
         void ShowPossibleMoves(int pieceIndex)
         {
             List<int> possible = GetPossibleMoves(_board.board[pieceIndex], pieceIndex: pieceIndex, playerIndex: 1);
@@ -520,13 +545,17 @@ namespace server
 
         }
 
-        public void SetTest7(byte[] board, int moveFrom, int moveTo)
+        public void SetTest7(byte[] board, int moveFrom, int moveTo, bool checkCapture = false)
         {
             _board.board = board;
-
             ShowPossibleMoves(moveFrom);
-            
 
+            if (checkCapture && PlayerHasForcedCapture(1, moveFrom))
+            {
+                Log.LogInfo("You should Capture first", this, ConsoleColor.Red);
+                return;
+            }
+            
             byte playerID = 1;
 
             byte pieceToMove = _board.board[moveFrom];
