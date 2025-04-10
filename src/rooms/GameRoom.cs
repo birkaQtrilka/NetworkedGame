@@ -18,7 +18,7 @@ namespace server
 		//wraps the board to play on...
 		CheckersBoard _board = new();
 
-		int playerTurn = 1;
+		byte playerTurn = 1;
 
         public void StartGame(TcpMessageChannel pPlayer1, TcpMessageChannel pPlayer2)
 		{
@@ -28,11 +28,7 @@ namespace server
 			addMember(pPlayer1);
 			addMember(pPlayer2);
 			playerTurn = 1;
-			var infoMessage = new ShowPlayerInfo()
-			{
-				Name1 = _server.GetPlayerInfo(pPlayer1).Name,
-				Name2 = _server.GetPlayerInfo(pPlayer2).Name,
-			};
+			
 			//_board.SetBoardData([
 			//		0,0,0,0,0,0,0,0,
 			//		0,0,0,0,0,0,0,0,
@@ -57,7 +53,12 @@ namespace server
 
 			safeForEach(m =>
 			{
-				m.SendMessage(infoMessage);
+				m.SendMessage( new ShowPlayerInfo()
+				{
+					Name1 = _server.GetPlayerInfo(pPlayer1).Name,
+					Name2 = _server.GetPlayerInfo(pPlayer2).Name,
+					PlayerColor = (byte)(indexOfMember(m)+1)
+				});
 			});
 		}
 
@@ -195,10 +196,13 @@ namespace server
 			}
 
             //and send the result of the boardstate back to all clients
-            MakeMoveResult makeMoveResult = new();
-			makeMoveResult.whoMadeTheMove = playerID;
-			makeMoveResult.boardData = _board.GetBoardData();
-			SendToAll(makeMoveResult);
+            MakeMoveResult makeMoveResult = new()
+            {
+                whoMadeTheMove = playerID,
+                boardData = _board.GetBoardData(),
+                playerTurn = playerTurn
+            };
+            SendToAll(makeMoveResult);
 
 			CheckAndSendWinState(playerID, pSender);
 		}
