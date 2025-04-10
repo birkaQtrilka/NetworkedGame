@@ -84,14 +84,14 @@ namespace server
         {
             var board = _board.board;
             for (int i = 0; i < 24; i++)
-                if ((i + ((i / 8) % 2)) % 2 == 0) board[i] = PLAYER_1_PAWN;
+                if ((i + ((i / 8) % 2)) % 2 != 0) board[i] = PLAYER_1_PAWN;
                 else board[i] = EMPTY;
 
             for (int i = 24; i < 40; i++)
                 _board.board[i] = EMPTY;
 
             for (int i = 40; i < BOARD_COUNT; i++)
-                if ((i + ((i / 8) % 2)) % 2 == 0) board[i] = PLAYER_2_PAWN;
+                if ((i + ((i / 8) % 2)) % 2 != 0) board[i] = PLAYER_2_PAWN;
                 else board[i] = EMPTY;
         }
 
