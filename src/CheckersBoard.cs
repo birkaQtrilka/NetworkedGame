@@ -1,4 +1,5 @@
 ﻿using shared;
+using System;
 using System.Drawing;
 using System.Numerics;
 
@@ -24,10 +25,10 @@ namespace server
             public int Y = y;
 
             public static Vector2Int operator +(Vector2Int a, Vector2Int b) =>
-                new (a.X + b.X, a.Y + b.Y);
+                new(a.X + b.X, a.Y + b.Y);
 
             public static Vector2Int operator *(Vector2Int a, int scalar) =>
-                new (a.X * scalar, a.Y * scalar);
+                new(a.X * scalar, a.Y * scalar);
 
             public override readonly string ToString() => $"({X}, {Y})";
 
@@ -83,7 +84,7 @@ namespace server
         {
             var board = _board.board;
             for (int i = 0; i < 24; i++)
-                if ( (i + ((i / 8) % 2)) % 2 == 0) board[i] = PLAYER_1_PAWN;
+                if ((i + ((i / 8) % 2)) % 2 == 0) board[i] = PLAYER_1_PAWN;
                 else board[i] = EMPTY;
 
             for (int i = 24; i < 40; i++)
@@ -93,167 +94,99 @@ namespace server
                 if ((i + ((i / 8) % 2)) % 2 == 0) board[i] = PLAYER_2_PAWN;
                 else board[i] = EMPTY;
         }
-        
-        #region Tests
-        public void SetTest1()
+
+        public void SetBoardData(byte[] data)
         {
-            //piece index = 9
-
-            _board.board =
-            [
-                0,0,0,0,0,0,0,0,
-                0,1,0,0,0,0,0,0,
-                0,0,2,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            ];
-            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
-
-            List<int> possibleMoves = GetPossibleMoves(PLAYER_1_PAWN, pieceIndex: 9, playerIndex: 1);
-            Log.LogInfo(string.Join(", ", possibleMoves), this, ConsoleColor.Magenta);
+            _board.board = data;
         }
 
-        public void SetTest2()
+        //go through all moves (all directions)
+        //fill up a list of direction data
+        //remove the illegal directions 
+        class DirectionMoves(int directionIndex)
         {
-            //piece index = 9
-
-            _board.board =
-            [
-                0,0,0,0,0,0,0,0,
-                0,1,0,0,0,0,0,0,
-                0,0,1,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            ];
-            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
-
-            List<int> possibleMoves = GetPossibleMoves(PLAYER_1_PAWN, pieceIndex: 9, playerIndex: 1);
-            Log.LogInfo(string.Join(", ", possibleMoves), this, ConsoleColor.Magenta);
+            public readonly List<int> indexes = [];
+            public readonly int directionIndex = directionIndex;
+            public bool hasCapturablePiece = false;
         }
-
-        public void SetTest3()
-        {
-            //piece index = 9
-
-            _board.board =
-            [
-                1,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,1,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,2,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            ];
-            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
-
-            List<int> possibleMoves = GetPossibleMoves(PLAYER_1_PAWN, pieceIndex: 18, playerIndex: 1);
-            Log.LogInfo(string.Join(", ", possibleMoves), this, ConsoleColor.Magenta);
-        }
-        public void SetTest4()
-        {
-            //piece index = 9
-
-            _board.board =
-            [
-                1,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            ];
-            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
-
-            List<int> possibleMoves = GetPossibleMoves(PLAYER_1_PAWN, pieceIndex: 0, playerIndex: 1);
-            Log.LogInfo(string.Join(", ", possibleMoves), this, ConsoleColor.Magenta);
-        }
-
-        public void SetTest5()
-        {
-            //piece index = 9
-
-            _board.board =
-            [
-                1,0,0,0,0,0,0,0,
-                0,2,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            ];
-            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
-
-            List<int> possibleMoves = GetPossibleMoves(PLAYER_1_PAWN, pieceIndex: 0, playerIndex: 1);
-            Log.LogInfo(string.Join(", ", possibleMoves), this, ConsoleColor.Magenta);
-        }
-
-        public void SetTest6()
-        {
-            _board.board =
-            [
-                1,0,0,0,0,0,0,0,
-                0,2,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            ];
-            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
-
-            List<int> possible = GetPossibleMoves(PLAYER_1_PAWN, pieceIndex: 0, playerIndex: 1);
-            Log.LogInfo(string.Join(", ", possible), this, ConsoleColor.Magenta);
-
-            //simulating move request
-            //sender is player one
-            byte senderID = 1;
-            MakeMoveRequest makeMoveRequest = new MakeMoveRequest() { From= 0, To = 18};
-            int from = makeMoveRequest.From;
-            int to = makeMoveRequest.To;
-
-            byte pieceToMove = _board.board[from];
-            //checking if the piece is of the sender
-            if (!IsPieceOfPlayer(senderID, pieceToMove))
-            {
-                Log.LogInfo("Is not your Piece!", this, ConsoleColor.Red);
-                return;
-            }
-            List<int> possibleMoves = GetPossibleMoves(pieceToMove, from, senderID);
-            if (!possibleMoves.Any(m => m == to))
-            {
-                Log.LogInfo("Not a valid move!", this, ConsoleColor.Red);
-                return;
-            }
-            Log.LogInfo("Can make move!", this, ConsoleColor.Green);
-
-            bool destroyed = MakeMove(from, to);
-            Log.LogInfo(_board.ToString() + "\n destroyed: " + destroyed, this, ConsoleColor.Yellow);
-
-        }
-        #endregion
 
         public List<int> GetPossibleMoves(byte piece, int pieceIndex, byte playerIndex)
         {
             //converting to x and y because it's easier to check bounds and move through board
             Vector2Int p = GetXY(pieceIndex);
 
-            int range = IsQueen(piece) ? 99 : 1;
-            List<int> moves = [];
-            byte[] board = _board.board;
+            List<DirectionMoves> moveSet = new(4);
 
+            byte[] board = _board.board;
+            bool capturablePieceExists = false;
+            int directionIndex = 0;
+            foreach (Vector2Int direction in directions)
+            {
+                var set = new DirectionMoves(directionIndex);
+                moveSet.Add(set);
+                bool pieceDetectedInDirection = false;
+
+                //in case there are two pieces in a row, to break the possible moves
+                int range = IsQueen(piece) ? 99 : 1;
+                for (int i = 1; i <= range; i++)
+                {
+                    Vector2Int checkPos = p + direction * i;
+                    if (!IsInBoardBounds(checkPos)) break;
+
+                    int newPieceIndex = GetIndex(checkPos);
+                    byte checkedPiece = board[newPieceIndex];
+                    if (checkedPiece == EMPTY)
+                    {
+                        set.indexes.Add(newPieceIndex);
+                        if (pieceDetectedInDirection)
+                        {
+                            set.hasCapturablePiece = true;
+                            capturablePieceExists = true;
+                        }
+                        continue;
+                    }
+
+                    if (pieceDetectedInDirection || IsPieceOfPlayer(playerIndex, checkedPiece)) break;
+                    pieceDetectedInDirection = true;
+                    //need to remove previous empty spaces
+                    set.indexes.Clear();
+                    //increasing range, so I can check the next tile
+                    range++;
+                }
+                //if I didn't detect a piece and I could capture one in a different direction,
+
+                directionIndex++;
+            }
+
+            foreach (DirectionMoves set in moveSet)
+            {
+                if (capturablePieceExists)
+                {
+                    if (!set.hasCapturablePiece) set.indexes.Clear();
+                }
+                else
+                {
+                    if (!IsPieceDirection(playerIndex, piece, set.directionIndex)) set.indexes.Clear();
+                }
+            }
+
+            return moveSet.SelectMany(m => m.indexes).ToList();
+        }
+
+        static bool IsPieceDirection(byte playerID, byte piece, int directionIndex)
+        {
+            return IsQueen(piece) ||
+                (playerID == 1 && directionIndex > 1) ||
+                (playerID == 2 && directionIndex < 2);
+        }
+
+        public bool HasRemovablePieces(byte piece, int pieceIndex, byte playerIndex)
+        {
+            Vector2Int p = GetXY(pieceIndex);
+
+            int range = IsQueen(piece) ? 99 : 1;
+            byte[] board = _board.board;
+            //use getPieceMoves if the rule is to capture only forward
             foreach (Vector2Int direction in directions)
             {
                 //in case there are two pieces in a row, to break the possible moves
@@ -267,20 +200,22 @@ namespace server
                     byte checkedPiece = board[newPieceIndex];
                     if (checkedPiece == EMPTY)
                     {
+                        if (lastWasPiece) return true;
                         lastWasPiece = false;
-                        moves.Add(newPieceIndex);
                     }
                     else
                     {
                         if (lastWasPiece || IsPieceOfPlayer(playerIndex, checkedPiece)) break;
                         lastWasPiece = true;
+
                         //increasing range, so I can check the next tile
                         range++;
                     }
                 }
             }
-            return moves;
+            return false;
         }
+
         //return if it deleted a piece
         //this method assumes that your move is valid,
         //including that the piece in between the move is the enemy piece
@@ -299,16 +234,51 @@ namespace server
             bool removedPiece = false;
 
             Vector2Int checkedPos = startPos + dir;
-            while(checkedPos != endPos)
+            while (checkedPos != endPos)
             {
                 int checkedIndex = GetIndex(checkedPos);
-                
-                if(board[checkedIndex] != EMPTY) removedPiece = true;
+
+                if (board[checkedIndex] != EMPTY) removedPiece = true;
 
                 board[checkedIndex] = EMPTY;
                 checkedPos += dir;
             }
             return removedPiece;
+        }
+
+        public bool PlayerHasForcedCapture(byte playerID, int pieceToExclude = -1)
+        {
+            var board = _board.board;
+            for (int i = 0; i < board.Length; i++)
+            {
+                if (pieceToExclude == i) continue;
+                byte piece = board[i];
+                if (IsPieceOfPlayer(playerID, piece) && HasRemovablePieces(piece, i, playerID)) return true;
+            }
+            return false;
+        }
+
+        public void PromotePiece(int pieceID)
+        {
+            _board.board[pieceID] += 2;
+        }
+
+        public bool IsPromoteable(int pieceIndex, byte playerId)
+        {
+            if(_board.board[pieceIndex] > 2) return false;
+            if(playerId == 1)
+            {
+                return pieceIndex > 55 && pieceIndex < 64;
+            }
+            else
+            {
+                return pieceIndex > -1 && pieceIndex < 8;
+            }
+        }
+
+        byte GetOtherPlayer(byte playerIndex)
+        {
+            return (byte)(playerIndex == 1 ? 2 : 1);
         }
 
         static Vector2Int GetXY(int index)
@@ -345,5 +315,255 @@ namespace server
         {
             return piece != EMPTY && piece % 2 != 0;
         }
+
+        #region Tests
+        void ShowPossibleMoves(int pieceIndex)
+        {
+            List<int> possible = GetPossibleMoves(_board.board[pieceIndex], pieceIndex: pieceIndex, playerIndex: 1);
+            foreach (var p in possible) _board.board[p] = 8;
+            Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
+            Log.LogInfo("possible moves of: 18: " + string.Join(", ", possible), this, ConsoleColor.Magenta);
+            foreach (var p in possible) _board.board[p] = 0;
+        }
+        public void SetTest1()
+        {
+            _board.board =
+            [
+                0,0,0,0,0,0,0,0,
+                0,1,0,0,0,0,0,0,
+                0,0,2,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            ];
+            ShowPossibleMoves(9);
+
+        }
+
+        public void SetTest2()
+        {
+            _board.board =
+            [
+                0,0,0,0,0,0,0,0,
+                0,1,0,0,0,0,0,0,
+                0,0,1,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            ];
+            ShowPossibleMoves(9);
+
+        }
+
+        public void SetTest3()
+        {
+            _board.board =
+            [
+                1,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,1,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,2,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            ];
+            ShowPossibleMoves(18);
+
+        }
+
+        public void SetTest4()
+        {
+            _board.board =
+            [
+                1,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            ];
+            ShowPossibleMoves(0);
+
+        }
+
+        public void SetTest5()
+        {
+            //piece index = 9
+
+            _board.board =
+            [
+                1,0,0,0,0,0,0,0,
+                0,2,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            ];
+            ShowPossibleMoves(0);
+
+            _board.board =
+            [
+                0,0,0,0,0,0,0,0,
+                0,2,0,0,0,0,0,0,
+                0,0,1,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            ];
+            ShowPossibleMoves(18);
+
+            _board.board =
+            [
+                1,0,1,0,1,0,1,0,
+                0,1,0,1,0,1,0,1,
+                1,0,0,0,0,0,1,0,
+                0,0,0,0,0,1,0,0,
+                0,0,0,0,2,0,0,0,
+                0,0,0,2,0,0,0,2,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            ];
+            ShowPossibleMoves(29);
+
+            _board.board =
+            [
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,1
+            ];
+            ShowPossibleMoves(63);
+
+            _board.board =
+            [
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,2,0,
+                0,0,0,0,0,0,0,1
+            ];
+            ShowPossibleMoves(63);
+        }
+
+        public void SetTest6()
+        {
+            SetStartState();
+            _board.board[27] = 2;
+            _board.board[54] = 0;
+
+            ShowPossibleMoves(18);
+
+            //simulating move request
+            //sender is player one
+            byte playerID = 1;
+            MakeMoveRequest makeMoveRequest = new MakeMoveRequest() { From = 18, To = 36 };
+            int from = makeMoveRequest.From;
+            int to = makeMoveRequest.To;
+
+            byte pieceToMove = _board.board[from];
+            //checking if the piece is of the sender
+            if (!IsPieceOfPlayer(playerID, pieceToMove))
+            {
+                Log.LogInfo("Is not your Piece!", this, ConsoleColor.Red);
+                return;
+            }
+            List<int> possibleMoves = GetPossibleMoves(pieceToMove, from, playerID);
+            if (!possibleMoves.Any(m => m == to))
+            {
+                Log.LogInfo("Not a valid move!", this, ConsoleColor.Red);
+                return;
+            }
+            Log.LogInfo("Can make move!", this, ConsoleColor.Green);
+
+            bool destroyed = MakeMove(from, to);
+            ShowPossibleMoves(to);
+            Log.LogInfo("destroyed: " + destroyed, this, ConsoleColor.Yellow);
+            if (!destroyed || !HasRemovablePieces(pieceToMove, to, playerID))
+            {
+                Log.LogInfo("Switching turn", this, ConsoleColor.Yellow);
+            }
+            else
+            {
+                Log.LogInfo("There are pieces left to remove", this, ConsoleColor.Yellow);
+                //trying to move a different pawn while there is a required capture
+                int otherPieceIndex = 16;
+                Log.LogInfo("Trying to move pawn 16", this, ConsoleColor.Yellow);
+                if (PlayerHasForcedCapture(playerID, pieceToExclude: otherPieceIndex))
+                {
+                    Log.LogInfo("Cannot, because some other piece should capture", this, ConsoleColor.Yellow);
+
+                }
+                else
+                {
+                    Log.LogInfo("Can Move", this, ConsoleColor.Yellow);
+
+                }
+            }
+
+        }
+
+        public void SetTest7(byte[] board, int moveFrom, int moveTo)
+        {
+            _board.board = board;
+
+            ShowPossibleMoves(moveFrom);
+            
+
+            byte playerID = 1;
+
+            byte pieceToMove = _board.board[moveFrom];
+            //checking if the piece is of the sender
+            if (!IsPieceOfPlayer(playerID, pieceToMove))
+            {
+                Log.LogInfo("Is not your Piece!", this, ConsoleColor.Red);
+                return;
+            }
+            List<int> possibleMoves = GetPossibleMoves(pieceToMove, moveFrom, playerID);
+            if (!possibleMoves.Any(m => m == moveTo))
+            {
+                Log.LogInfo("Not a valid move!", this, ConsoleColor.Red);
+                return;
+            }
+            Log.LogInfo("Can make move!", this, ConsoleColor.Green);
+
+            bool destroyed = MakeMove(moveFrom, moveTo);
+
+
+            Log.LogInfo("destroyed: " + destroyed, this, ConsoleColor.Yellow);
+            if (!destroyed || !HasRemovablePieces(pieceToMove, moveTo, playerID))
+            {
+                Log.LogInfo("Switching turn", this, ConsoleColor.Yellow);
+                if(IsPromoteable(moveTo, playerID))
+                {
+                    Log.LogInfo("Promoting to queen", this, ConsoleColor.Green);
+                    PromotePiece(moveTo);
+                }
+            }
+            else
+            {
+                Log.LogInfo("There are pieces left to remove", this, ConsoleColor.Yellow);
+            }
+            ShowPossibleMoves(moveTo);
+
+        }
+        #endregion
     }
 }

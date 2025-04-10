@@ -24,9 +24,9 @@ namespace server
 		{
 		}
 
-		
 
-		public void StartGame (TcpMessageChannel pPlayer1, TcpMessageChannel pPlayer2)
+
+		public void StartGame(TcpMessageChannel pPlayer1, TcpMessageChannel pPlayer2)
 		{
 			if (IsGameInPlay) throw new Exception("Programmer error duuuude.");
 
@@ -39,7 +39,17 @@ namespace server
 				Name1 = _server.GetPlayerInfo(pPlayer1).Name,
 				Name2 = _server.GetPlayerInfo(pPlayer2).Name,
 			};
-			_board.SetStartState();
+			_board.SetBoardData([
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,2,0,0,
+					0,0,0,0,0,0,0,0,
+					0,1,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0
+				]);
+			//_board.SetStartState();
 
 			var resetBoard = new ResetBoard()
 			{
@@ -66,7 +76,7 @@ namespace server
 			roomJoinedEvent.room = RoomJoinedEvent.Room.GAME_ROOM;
 			pMember.SendMessage(roomJoinedEvent);
 
-			
+
 		}
 
 		public override void Update()
@@ -84,11 +94,11 @@ namespace server
 
 		protected override void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender)
 		{
-			if (pMessage is MakeMoveRequest makeMoveRequest) 
+			if (pMessage is MakeMoveRequest makeMoveRequest)
 			{
 				HandleMakeMoveRequest(makeMoveRequest, pSender);
 			}
-			else if(pMessage is SelectPieceRequest selectPieceRequest)
+			else if (pMessage is SelectPieceRequest selectPieceRequest)
 			{
 				HandleSelectPieceRequest(selectPieceRequest, pSender);
 			}
@@ -100,19 +110,27 @@ namespace server
 			byte senderID = (byte)(indexOfMember(pSender) + 1);
 			if (senderID != playerTurn)
 			{
-                Log.LogInfo("It's not your turn!", this, ConsoleColor.Red);
-                return;
-            }
-            int from = pMessage.From;
-            int to = pMessage.To;
+				Log.LogInfo("It's not your turn!", this, ConsoleColor.Red);
+				return;
+			}
+			int from = pMessage.From;
+			int to = pMessage.To;
 
-            byte pieceToMove = _board.GetBoardData().board[from];
-            //checking if the piece is of the sender
-            if (!CheckersBoard.IsPieceOfPlayer(senderID, pieceToMove))
+			byte pieceToMove = _board.GetBoardData().board[from];
+			//checking if the piece is of the sender
+			if 
+			(
+				!CheckersBoard.IsPieceOfPlayer(senderID, pieceToMove) ||
+                (
+					!_board.HasRemovablePieces(pieceToMove, from, senderID) &&
+					_board.PlayerHasForcedCapture(senderID, pieceToExclude: from) 
+				)
+			)
             {
                 Log.LogInfo("Is not your Piece!", this, ConsoleColor.Red);
                 return;
             }
+
             List<int> possibleMoves = _board.GetPossibleMoves(pieceToMove, from, senderID);
             if (!possibleMoves.Any(m => m == to))
             {
@@ -122,12 +140,18 @@ namespace server
             Log.LogInfo("Can make move!", this, ConsoleColor.Green);
 
             bool removedPiece = _board.MakeMove(from, to);
+			
+			if(_board.IsPromoteable(to, senderID)) _board.PromotePiece(to);
+
             Log.LogInfo(_board.ToString(), this, ConsoleColor.Yellow);
 
-			if (!removedPiece) SwitchPlayerTurn();
+			if (!removedPiece || !_board.HasRemovablePieces(pieceToMove, to, senderID))
+			{
+                SwitchPlayerTurn();
+			}
 
-			//and send the result of the boardstate back to all clients
-			MakeMoveResult makeMoveResult = new();
+            //and send the result of the boardstate back to all clients
+            MakeMoveResult makeMoveResult = new();
 			makeMoveResult.whoMadeTheMove = senderID;
 			makeMoveResult.boardData = _board.GetBoardData();
 			sendToAll(makeMoveResult);
@@ -146,7 +170,15 @@ namespace server
 			
 			int pieceIndex = pMessage.TileIndex;
             byte piece = _board.GetBoardData().board[pieceIndex];
-			if(CheckersBoard.IsPieceOfPlayer(playerID, piece))
+			if
+			(
+			    playerTurn == playerID &&
+				CheckersBoard.IsPieceOfPlayer(playerID, piece) &&
+				(
+					_board.HasRemovablePieces(piece, pieceIndex, playerID) ||
+					!_board.PlayerHasForcedCapture(playerID, pieceToExclude: pieceIndex) 
+                )
+			)
 			{
 				pSender.SendMessage(new SelectPieceResponse()
 				{

@@ -52,26 +52,80 @@ namespace server {
 
 		void run()
 		{
-			//CheckersBoard testBoard = new();
-			//testBoard.SetTest2();
-			//testBoard.SetTest3();
-			//testBoard.SetTest4();
-			//testBoard.SetTest5();
-			//testBoard.SetTest6();
-			//testBoard.SetStartState();
+			CheckersBoard testBoard = new();
+			testBoard.SetTest2();
+			testBoard.SetTest3();
+			testBoard.SetTest4();
+			testBoard.SetTest5();
+            testBoard.SetTest6();
+            testBoard.SetTest7
+			(
+                [
+					3,0,0,0,0,0,0,0,
+					0,2,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0
+				],
+				moveFrom: 0,
+				moveTo: 63
+			);
 
-			//ResetBoard b= new ResetBoard() { boardData = testBoard.GetBoardData() };
-			//Packet p = new Packet();
-			//p.Write(b);
-			//Packet pb = new Packet(p.GetBytes());
-			//var result = pb.ReadObject();
+            testBoard.SetTest7
+            (
+                [
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,0,2,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,3,0,0,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,0,2,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,0,0,0,0
+                ],
+                moveFrom: 27,
+                moveTo: 6
+            );
+            testBoard.SetTest7
+            (
+                [
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,0,0,0,0,2,0,0,
+                    0,0,0,0,0,0,0,0,
+                    0,1,0,0,0,0,0,0,
+                    0,0,0,0,0,0,0,0
+                ],
+                moveFrom: 49,
+                moveTo: 58
+            );
+            //testBoard.SetStartState();
 
-			Log.LogInfo("Starting server on port 55555", this, ConsoleColor.Gray);
+            //ResetBoard b = new ResetBoard() { boardData = testBoard.GetBoardData() };
+            //Packet p = new Packet();
+            //p.Write(b);
+            //Packet pb = new Packet(p.GetBytes());
+            //var result = pb.ReadObject();
 
-			//start listening for incoming connections (with max 50 in the queue)
-			//we allow for a lot of incoming connections, so we can handle them
-			//and tell them whether we will accept them or not instead of bluntly declining them
-			TcpListener listener = new TcpListener(IPAddress.Any, 55555);
+
+            //b = new ResetBoard() { boardData = testBoard.GetBoardData() };
+            //p = new Packet();
+            //p.Write(b);
+            //pb = new Packet(p.GetBytes());
+            //result = pb.ReadObject();
+            //var board = result as ResetBoard;
+            //var strin = board.boardData.ToString();
+            //Log.LogInfo("Starting server on port 55555", this, ConsoleColor.Gray);
+
+            //start listening for incoming connections (with max 50 in the queue)
+            //we allow for a lot of incoming connections, so we can handle them
+            //and tell them whether we will accept them or not instead of bluntly declining them
+            TcpListener listener = new TcpListener(IPAddress.Any, 55555);
 			listener.Start(50);
 
 			while (true)
